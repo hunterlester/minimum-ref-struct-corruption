@@ -27,31 +27,38 @@ const accessContainerEntry = [
 ];
 
 const makeAccessContainerEntry = (accessContainerEntry) => {
-  const contInfoArray = new ContainerInfoArray(accessContainerEntry.map((entry, index) => {
-    global[`x${index}`] = ref.allocCString(entry.name);
-    return new ContainerInfo({
-      name: global[`x${index}`]
-    });
+  const accessContainerEntryCache = {
+    containerInfoArrayCache: null,
+    containerInfoCaches: [],
+  };
+  accessContainerEntryCache.containerInfoArrayCache = new ContainerInfoArray(accessContainerEntry.map((entry, index) => {
+    const name = ref.allocCString(entry.name);
+    accessContainerEntryCache.containerInfoCaches.push(name);
+    return new ContainerInfo({ name });
   }));
-  return new AccessContainerEntry({
-    containers: contInfoArray.buffer
-  });
+  return {
+    accessContainerEntry: new AccessContainerEntry({
+      containers: accessContainerEntryCache.containerInfoArrayCache.buffer,
+    }),
+    accessContainerEntryCache,
+  };
 };
 
 const makeAuthGrantedFfiStruct = () => {
-  return new AuthGranted({
-	access_container_entry: makeAccessContainerEntry(accessContainerEntry)
-  });
+  const ace = makeAccessContainerEntry(accessContainerEntry);
+  return {
+    authGranted: new AuthGranted({
+      access_container_entry: ace.accessContainerEntry,
+    }),
+    authGrantedCache: ace.accessContainerEntryCache,
+  };
 }
 
 const authGranted = makeAuthGrantedFfiStruct();
-const unNestedContainerEntry = makeAccessContainerEntry(accessContainerEntry);
 
 if(global.gc) {
   console.log('Running garbage collection...');
   global.gc();
 }
 
-console.log('authGranted object afte gc: ', authGranted.access_container_entry.containers.deref());
-console.log('Unnested access container entry after gc: ', unNestedContainerEntry.containers.deref());
-console.log('Globally assigned values after gc: ', global.x0.toString(), global.x1.toString());
+console.log('authGranted object afte gc: ', authGranted.authGranted.access_container_entry.containers.deref());
